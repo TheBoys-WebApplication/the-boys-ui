@@ -1,0 +1,37 @@
+<svg width="600" height="240" viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
+  <!-- Compass outer ring -->
+  <circle cx="120" cy="120" r="72" fill="none" stroke="#EA580C" stroke-width="3"/>
+  <!-- Compass inner fill -->
+  <circle cx="120" cy="120" r="58" fill="#FFF7ED"/>
+
+  <!-- Mountain silhouette -->
+  <polygon points="120,68 90,128 150,128" fill="#EA580C"/>
+  <polygon points="100,128 82,128 100,95 114,115" fill="#C2410C"/>
+
+  <!-- Sun accent -->
+  <circle cx="120" cy="62" r="8" fill="#D97706"/>
+
+  <!-- Compass tick marks -->
+  <line x1="120" y1="52" x2="120" y2="60" stroke="#EA580C" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="120" y1="180" x2="120" y2="188" stroke="#EA580C" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="52" y1="120" x2="60" y2="120" stroke="#EA580C" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="180" y1="120" x2="188" y2="120" stroke="#EA580C" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Diagonal ticks -->
+  <line x1="69" y1="69" x2="74" y2="74" stroke="#EA580C" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="166" y1="69" x2="171" y2="74" stroke="#EA580C" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="69" y1="166" x2="74" y2="171" stroke="#EA580C" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="166" y1="166" x2="171" y2="171" stroke="#EA580C" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- Divider -->
+  <line x1="210" y1="72" x2="210" y2="188" stroke="#EA580C" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- "THE" label -->
+  <text x="232" y="100" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="500" fill="#B45309" letter-spacing="10">THE</text>
+
+  <!-- "BOYS" wordmark -->
+  <text x="230" y="168" font-family="Arial Black, Arial, sans-serif" font-size="72" font-weight="900" fill="#1A1A2E" letter-spacing="2">BOYS</text>
+
+  <!-- Tagline -->
+  <text x="232" y="200" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="400" fill="#6B7280" letter-spacing="4">PLAN. GO. REMEMBER.</text>
+</svg>
