@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import GroupDetail from './pages/GroupDetail';
+import TripDetail from './pages/TripDetail';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/groups/:id" element={<GroupDetail />} />
+        <Route path="/trips/:id" element={<TripDetail />} />
       </Route>
 
       {/* Catch-all */}

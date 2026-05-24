@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Copy, Check, RefreshCw, Trash2, UserMinus, Crown } from 'lucide-react';
+import { ArrowLeft, Copy, Check, RefreshCw, Trash2, UserMinus, Crown, Plus, Plane } from 'lucide-react';
 import { useAuthContext } from '../store/auth';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import ThemeToggle from '../components/ThemeToggle';
+import TripCard from '../components/TripCard';
+import CreateTripModal from '../components/CreateTripModal';
 import {
   useGroup,
   useGroupMembers,
@@ -12,6 +14,7 @@ import {
   useRemoveMember,
   useDeleteGroup,
 } from '../hooks/useGroups';
+import { useTrips } from '../hooks/useTrips';
 import { formatDate, copyToClipboard } from '../lib/utils';
 
 export default function GroupDetail() {
@@ -19,9 +22,11 @@ export default function GroupDetail() {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const [copied, setCopied] = useState(false);
+  const [tripModalOpen, setTripModalOpen] = useState(false);
 
   const { data: group, isLoading: groupLoading } = useGroup(id!);
   const { data: members, isLoading: membersLoading } = useGroupMembers(id!);
+  const { data: trips, isLoading: tripsLoading } = useTrips(id!);
   const regenerate = useRegenerateInvite(id!);
   const removeMember = useRemoveMember(id!);
   const deleteGroup = useDeleteGroup();
@@ -193,11 +198,55 @@ export default function GroupDetail() {
           )}
         </Card>
 
+        {/* Trips */}
+        <Card>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Trips ({trips?.length ?? 0})
+            </h2>
+            <Button size="sm" onClick={() => setTripModalOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New Trip
+            </Button>
+          </div>
+
+          {tripsLoading ? (
+            <div className="space-y-3">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100 dark:bg-navy-700" />
+              ))}
+            </div>
+          ) : trips && trips.length > 0 ? (
+            <div className="space-y-3">
+              {trips.map((t) => (
+                <TripCard key={t.id} trip={t} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 py-10 text-center">
+              <Plane className="h-8 w-8 text-gray-300 dark:text-gray-600" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">No trips yet.</p>
+              <button
+                onClick={() => setTripModalOpen(true)}
+                className="text-sm text-brand-600 hover:underline dark:text-brand-400"
+              >
+                Plan your first trip →
+              </button>
+            </div>
+          )}
+        </Card>
+
         <p className="text-center text-xs text-gray-400 dark:text-gray-500">
           Group created {formatDate(group.created_at)} · {group.member_count} member
           {group.member_count !== 1 ? 's' : ''}
         </p>
       </main>
+
+      <CreateTripModal
+        groupId={id!}
+        open={tripModalOpen}
+        onClose={() => setTripModalOpen(false)}
+      />
     </div>
   );
 }
