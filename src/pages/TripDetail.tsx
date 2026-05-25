@@ -10,6 +10,8 @@ import {
   Plus,
   Trash2,
   Pencil,
+  DollarSign,
+  LayoutGrid,
 } from 'lucide-react';
 import { useAuthContext } from '../store/auth';
 import { Button } from '../components/ui/Button';
@@ -18,9 +20,15 @@ import ThemeToggle from '../components/ThemeToggle';
 import ActivityCard from '../components/ActivityCard';
 import AddActivityModal from '../components/AddActivityModal';
 import CreateTripModal from '../components/CreateTripModal';
+import AddExpenseModal from '../components/AddExpenseModal';
+import ExpenseCard from '../components/ExpenseCard';
+import BalanceSummary, { SuggestedSettlement } from '../components/BalanceSummary';
+import SettleUpModal from '../components/SettleUpModal';
 import { useTrip, useActivities, useUpdateActivity, useDeleteActivity, useDeleteTrip, useUpdateTrip } from '../hooks/useTrips';
 import { useGroup } from '../hooks/useGroups';
+import { useExpenses, useDeleteExpense, useBalances, useSettlements, useDeleteSettlement } from '../hooks/useExpenses';
 import { Activity, ActivityStatus, TripStatus } from '../api/trips';
+import { Expense } from '../api/expenses';
 import { cn } from '../lib/utils';
 
 const STATUS_STYLES: Record<TripStatus, string> = {
@@ -47,17 +55,30 @@ function formatDateRange(start: string | null, end: string | null): string | nul
   return `Until ${fmt(end!)}`;
 }
 
+type Tab = 'activities' | 'expenses';
+
 export default function TripDetail() {
   const { id: tripId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuthContext();
 
+  // ── Tab ──────────────────────────────────────────────────────────────────────
+  const [tab, setTab] = useState<Tab>('activities');
+
+  // ── Activity state ────────────────────────────────────────────────────────
   const [addOpen, setAddOpen] = useState(false);
   const [editTripOpen, setEditTripOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [editingStatus, setEditingStatus] = useState(false);
   const [activityError, setActivityError] = useState<string | null>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  // ── Expense state ─────────────────────────────────────────────────────────
+  const [addExpenseOpen, setAddExpenseOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [settleUpOpen, setSettleUpOpen] = useState(false);
+  const [settleUpSuggestion, setSettleUpSuggestion] = useState<SuggestedSettlement | undefined>();
+  const [expenseError, setExpenseError] = useState<string | null>(null);
 
   // Close status dropdown when clicking outside of it.
   useEffect(() => {
@@ -71,26 +92,34 @@ export default function TripDetail() {
     return () => document.removeEventListener('mousedown', handler);
   }, [editingStatus]);
 
+  // ── Data ──────────────────────────────────────────────────────────────────
   const { data: trip, isLoading: tripLoading } = useTrip(tripId!);
   const { data: activities, isLoading: activitiesLoading } = useActivities(tripId!);
   const { data: group } = useGroup(trip?.group_id ?? '');
+  const { data: expenses = [] } = useExpenses(tripId!);
+  const { data: balances = [] } = useBalances(tripId!);
+  const { data: settlements = [] } = useSettlements(tripId!);
 
-  const updateActivity = useUpdateActivity(tripId!);
-  const deleteActivity = useDeleteActivity(tripId!);
-  const deleteTrip = useDeleteTrip(trip?.group_id ?? '');
-  const updateTrip = useUpdateTrip(tripId!);
+  // ── Mutations ─────────────────────────────────────────────────────────────
+  const updateActivity   = useUpdateActivity(tripId!);
+  const deleteActivity   = useDeleteActivity(tripId!);
+  const deleteTrip       = useDeleteTrip(trip?.group_id ?? '');
+  const updateTrip       = useUpdateTrip(tripId!);
+  const deleteExpense    = useDeleteExpense(tripId!);
+  const deleteSettlement = useDeleteSettlement(tripId!);
 
-  const isLeader = group?.leader_id === user?.id;
-  const isCreator = trip?.created_by === user?.id;
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const isLeader      = group?.leader_id === user?.id;
+  const isCreator     = trip?.created_by === user?.id;
   const canManageTrip = isLeader || isCreator;
 
-  const ideas = activities?.filter((a) => a.status === 'idea') ?? [];
+  const ideas     = activities?.filter((a) => a.status === 'idea')      ?? [];
   const confirmed = activities?.filter((a) => a.status === 'confirmed') ?? [];
-  const done = activities?.filter((a) => a.status === 'done') ?? [];
+  const done      = activities?.filter((a) => a.status === 'done')      ?? [];
 
-  const handleEditActivity = (activity: Activity) => {
-    setEditingActivity(activity);
-  };
+  // ── Activity handlers ─────────────────────────────────────────────────────
+
+  const handleEditActivity = (activity: Activity) => setEditingActivity(activity);
 
   const handleAdvance = async (activityId: string, status: ActivityStatus) => {
     try {
@@ -110,7 +139,7 @@ export default function TripDetail() {
     }
   };
 
-  const handleDelete = async (activityId: string) => {
+  const handleDeleteActivity = async (activityId: string) => {
     if (!confirm('Remove this activity?')) return;
     try {
       setActivityError(null);
@@ -121,7 +150,7 @@ export default function TripDetail() {
   };
 
   const handleDeleteTrip = async () => {
-    if (!confirm(`Delete "${trip?.name}"? This will also delete all activities.`)) return;
+    if (!confirm(`Delete "${trip?.name}"? This will also delete all activities and expenses.`)) return;
     await deleteTrip.mutateAsync(tripId!);
     navigate(`/groups/${trip?.group_id}`);
   };
@@ -130,6 +159,40 @@ export default function TripDetail() {
     await updateTrip.mutateAsync({ status });
     setEditingStatus(false);
   };
+
+  // ── Expense handlers ──────────────────────────────────────────────────────
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm('Remove this expense?')) return;
+    try {
+      setExpenseError(null);
+      await deleteExpense.mutateAsync(id);
+    } catch {
+      setExpenseError('Could not remove expense. Please try again.');
+    }
+  };
+
+  const handleDeleteSettlement = async (id: string) => {
+    if (!confirm('Remove this payment record?')) return;
+    try {
+      setExpenseError(null);
+      await deleteSettlement.mutateAsync(id);
+    } catch {
+      setExpenseError('Could not remove payment record. Please try again.');
+    }
+  };
+
+  const handleSettleUp = (suggestion?: SuggestedSettlement) => {
+    setSettleUpSuggestion(suggestion);
+    setSettleUpOpen(true);
+  };
+
+  const handleSettleUpClose = () => {
+    setSettleUpOpen(false);
+    setSettleUpSuggestion(undefined);
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   if (tripLoading) {
     return (
@@ -154,7 +217,7 @@ export default function TripDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-navy-900">
-      {/* Header */}
+      {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="border-b border-gray-200 bg-white dark:border-navy-600 dark:bg-navy-800">
         <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4">
           <Link
@@ -182,7 +245,6 @@ export default function TripDetail() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            {/* Edit trip details */}
             {canManageTrip && (
               <Button variant="secondary" size="sm" onClick={() => setEditTripOpen(true)}>
                 <Pencil className="h-4 w-4" />
@@ -197,21 +259,24 @@ export default function TripDetail() {
                   className={cn(
                     'flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium',
                     STATUS_STYLES[trip.status],
-                    'hover:opacity-80 transition-opacity',
+                    'transition-opacity hover:opacity-80',
                   )}
                 >
                   <Pencil className="h-3 w-3" />
                   {trip.status.charAt(0).toUpperCase() + trip.status.slice(1)}
                 </button>
                 {editingStatus && (
-                  <div className="absolute right-0 top-full mt-1 z-20 rounded-xl border border-gray-200 bg-white shadow-lg dark:border-navy-600 dark:bg-navy-800 min-w-[140px]">
+                  <div className="absolute right-0 top-full z-20 mt-1 min-w-[140px] rounded-xl border border-gray-200 bg-white shadow-lg dark:border-navy-600 dark:bg-navy-800">
                     {TRIP_STATUSES.map((s) => (
                       <button
                         key={s}
                         onClick={() => handleStatusChange(s)}
                         className={cn(
-                          'w-full px-3 py-2 text-left text-sm capitalize hover:bg-gray-50 dark:hover:bg-navy-700 first:rounded-t-xl last:rounded-b-xl',
-                          s === trip.status ? 'font-semibold text-brand-600 dark:text-brand-400' : 'text-gray-700 dark:text-gray-300',
+                          'w-full px-3 py-2 text-left text-sm capitalize hover:bg-gray-50 dark:hover:bg-navy-700',
+                          'first:rounded-t-xl last:rounded-b-xl',
+                          s === trip.status
+                            ? 'font-semibold text-brand-600 dark:text-brand-400'
+                            : 'text-gray-700 dark:text-gray-300',
                         )}
                       >
                         {s}
@@ -241,129 +306,233 @@ export default function TripDetail() {
           <p className="mb-6 text-gray-600 dark:text-gray-400">{trip.description}</p>
         )}
 
-        {/* Activity error banner */}
-        {activityError && (
-          <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
-            <span>{activityError}</span>
-            <button onClick={() => setActivityError(null)} className="ml-3 text-red-400 hover:text-red-600">✕</button>
-          </div>
-        )}
-
-        {/* Add activity button */}
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Activities</h2>
-          <Button onClick={() => setAddOpen(true)} size="sm">
-            <Plus className="h-4 w-4" />
-            Add Activity
-          </Button>
+        {/* ── Tabs ────────────────────────────────────────────────────────── */}
+        <div className="mb-6 flex gap-1 border-b border-gray-200 dark:border-navy-700">
+          <button
+            onClick={() => setTab('activities')}
+            className={cn(
+              '-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+              tab === 'activities'
+                ? 'border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Activities
+          </button>
+          <button
+            onClick={() => setTab('expenses')}
+            className={cn(
+              '-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors',
+              tab === 'expenses'
+                ? 'border-brand-500 text-brand-600 dark:border-brand-400 dark:text-brand-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
+            )}
+          >
+            <DollarSign className="h-4 w-4" />
+            Expenses
+          </button>
         </div>
 
-        {activitiesLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-40 animate-pulse rounded-xl bg-gray-100 dark:bg-navy-800" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {/* Ideas column */}
-            <div>
-              <div className="mb-3 flex items-center gap-2">
-                <Lightbulb className="h-4 w-4 text-gray-400" />
-                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                  Ideas ({ideas.length})
-                </span>
+        {/* ── Activities tab ────────────────────────────────────────────── */}
+        {tab === 'activities' && (
+          <>
+            {/* Activity error banner */}
+            {activityError && (
+              <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+                <span>{activityError}</span>
+                <button
+                  onClick={() => setActivityError(null)}
+                  className="ml-3 text-red-400 hover:text-red-600"
+                >
+                  ✕
+                </button>
               </div>
-              <div className="space-y-3">
-                {ideas.map((a) => (
-                  <ActivityCard
-                    key={a.id}
-                    activity={a}
-                    currentUserId={user?.id ?? ''}
-                    isLeader={isLeader}
-                    onAdvance={handleAdvance}
-                    onRevert={handleRevert}
-                    onEdit={handleEditActivity}
-                    onDelete={handleDelete}
-                    isUpdating={updateActivity.isPending || deleteActivity.isPending}
-                  />
-                ))}
-                {ideas.length === 0 && (
-                  <Card className="border-dashed text-center py-8">
-                    <p className="text-sm text-gray-400 dark:text-gray-500">No ideas yet</p>
-                    <button
-                      onClick={() => setAddOpen(true)}
-                      className="mt-1 text-sm text-brand-600 hover:underline dark:text-brand-400"
-                    >
-                      + Add one
-                    </button>
-                  </Card>
-                )}
-              </div>
+            )}
+
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Activities</h2>
+              <Button onClick={() => setAddOpen(true)} size="sm">
+                <Plus className="h-4 w-4" />
+                Add Activity
+              </Button>
             </div>
 
-            {/* Confirmed column */}
-            <div>
-              <div className="mb-3 flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-blue-500" />
-                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                  Confirmed ({confirmed.length})
-                </span>
-              </div>
-              <div className="space-y-3">
-                {confirmed.map((a) => (
-                  <ActivityCard
-                    key={a.id}
-                    activity={a}
-                    currentUserId={user?.id ?? ''}
-                    isLeader={isLeader}
-                    onAdvance={handleAdvance}
-                    onRevert={handleRevert}
-                    onEdit={handleEditActivity}
-                    onDelete={handleDelete}
-                    isUpdating={updateActivity.isPending || deleteActivity.isPending}
-                  />
+            {activitiesLoading ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-40 animate-pulse rounded-xl bg-gray-100 dark:bg-navy-800" />
                 ))}
-                {confirmed.length === 0 && (
-                  <Card className="border-dashed py-8 text-center">
-                    <p className="text-sm text-gray-400 dark:text-gray-500">Nothing confirmed yet</p>
-                  </Card>
-                )}
               </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                {/* Ideas column */}
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                      Ideas ({ideas.length})
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {ideas.map((a) => (
+                      <ActivityCard
+                        key={a.id}
+                        activity={a}
+                        currentUserId={user?.id ?? ''}
+                        isLeader={isLeader}
+                        onAdvance={handleAdvance}
+                        onRevert={handleRevert}
+                        onEdit={handleEditActivity}
+                        onDelete={handleDeleteActivity}
+                        isUpdating={updateActivity.isPending || deleteActivity.isPending}
+                      />
+                    ))}
+                    {ideas.length === 0 && (
+                      <Card className="border-dashed py-8 text-center">
+                        <p className="text-sm text-gray-400 dark:text-gray-500">No ideas yet</p>
+                        <button
+                          onClick={() => setAddOpen(true)}
+                          className="mt-1 text-sm text-brand-600 hover:underline dark:text-brand-400"
+                        >
+                          + Add one
+                        </button>
+                      </Card>
+                    )}
+                  </div>
+                </div>
+
+                {/* Confirmed column */}
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                      Confirmed ({confirmed.length})
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {confirmed.map((a) => (
+                      <ActivityCard
+                        key={a.id}
+                        activity={a}
+                        currentUserId={user?.id ?? ''}
+                        isLeader={isLeader}
+                        onAdvance={handleAdvance}
+                        onRevert={handleRevert}
+                        onEdit={handleEditActivity}
+                        onDelete={handleDeleteActivity}
+                        isUpdating={updateActivity.isPending || deleteActivity.isPending}
+                      />
+                    ))}
+                    {confirmed.length === 0 && (
+                      <Card className="border-dashed py-8 text-center">
+                        <p className="text-sm text-gray-400 dark:text-gray-500">Nothing confirmed yet</p>
+                      </Card>
+                    )}
+                  </div>
+                </div>
+
+                {/* Done column */}
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <Flag className="h-4 w-4 text-green-500" />
+                    <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
+                      Done ({done.length})
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {done.map((a) => (
+                      <ActivityCard
+                        key={a.id}
+                        activity={a}
+                        currentUserId={user?.id ?? ''}
+                        isLeader={isLeader}
+                        onAdvance={handleAdvance}
+                        onRevert={handleRevert}
+                        onEdit={handleEditActivity}
+                        onDelete={handleDeleteActivity}
+                        isUpdating={updateActivity.isPending || deleteActivity.isPending}
+                      />
+                    ))}
+                    {done.length === 0 && (
+                      <Card className="border-dashed py-8 text-center">
+                        <p className="text-sm text-gray-400 dark:text-gray-500">Nothing done yet</p>
+                      </Card>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Expenses tab ──────────────────────────────────────────────── */}
+        {tab === 'expenses' && (
+          <div className="space-y-8">
+            {/* Expense error banner */}
+            {expenseError && (
+              <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+                <span>{expenseError}</span>
+                <button
+                  onClick={() => setExpenseError(null)}
+                  className="ml-3 text-red-400 hover:text-red-600"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* Expenses list */}
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Expenses</h2>
+                <Button size="sm" onClick={() => setAddExpenseOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  Add Expense
+                </Button>
+              </div>
+              {expenses.length === 0 ? (
+                <Card className="border-dashed py-10 text-center">
+                  <p className="text-sm text-gray-400 dark:text-gray-500">No expenses yet</p>
+                  <button
+                    onClick={() => setAddExpenseOpen(true)}
+                    className="mt-1 text-sm text-brand-600 hover:underline dark:text-brand-400"
+                  >
+                    + Add the first one
+                  </button>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {expenses.map((e) => (
+                    <ExpenseCard
+                      key={e.id}
+                      expense={e}
+                      currentUserId={user?.id ?? ''}
+                      isLeader={isLeader}
+                      onEdit={setEditingExpense}
+                      onDelete={handleDeleteExpense}
+                      isDeleting={deleteExpense.isPending}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Done column */}
-            <div>
-              <div className="mb-3 flex items-center gap-2">
-                <Flag className="h-4 w-4 text-green-500" />
-                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">
-                  Done ({done.length})
-                </span>
-              </div>
-              <div className="space-y-3">
-                {done.map((a) => (
-                  <ActivityCard
-                    key={a.id}
-                    activity={a}
-                    currentUserId={user?.id ?? ''}
-                    isLeader={isLeader}
-                    onAdvance={handleAdvance}
-                    onRevert={handleRevert}
-                    onEdit={handleEditActivity}
-                    onDelete={handleDelete}
-                    isUpdating={updateActivity.isPending || deleteActivity.isPending}
-                  />
-                ))}
-                {done.length === 0 && (
-                  <Card className="border-dashed py-8 text-center">
-                    <p className="text-sm text-gray-400 dark:text-gray-500">Nothing done yet</p>
-                  </Card>
-                )}
-              </div>
-            </div>
+            {/* Balances & settle-up */}
+            <BalanceSummary
+              balances={balances}
+              settlements={settlements}
+              currentUserId={user?.id ?? ''}
+              isLeader={isLeader}
+              onSettleUp={handleSettleUp}
+              onDeleteSettlement={handleDeleteSettlement}
+              isDeletingSettlement={deleteSettlement.isPending}
+            />
           </div>
         )}
       </main>
+
+      {/* ── Modals ────────────────────────────────────────────────────────── */}
 
       {/* Add activity */}
       <AddActivityModal
@@ -386,6 +555,35 @@ export default function TripDetail() {
         trip={trip}
         open={editTripOpen}
         onClose={() => setEditTripOpen(false)}
+      />
+
+      {/* Add expense */}
+      <AddExpenseModal
+        tripId={tripId!}
+        groupId={trip.group_id}
+        currentUserId={user?.id ?? ''}
+        open={addExpenseOpen}
+        onClose={() => setAddExpenseOpen(false)}
+      />
+
+      {/* Edit expense */}
+      <AddExpenseModal
+        tripId={tripId!}
+        groupId={trip.group_id}
+        currentUserId={user?.id ?? ''}
+        expense={editingExpense ?? undefined}
+        open={editingExpense !== null}
+        onClose={() => setEditingExpense(null)}
+      />
+
+      {/* Settle up */}
+      <SettleUpModal
+        tripId={tripId!}
+        groupId={trip.group_id}
+        currentUserId={user?.id ?? ''}
+        suggestion={settleUpSuggestion}
+        open={settleUpOpen}
+        onClose={handleSettleUpClose}
       />
     </div>
   );
