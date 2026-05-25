@@ -39,6 +39,7 @@ export default function AddActivityModal({ tripId, open, onClose }: AddActivityM
 
   const handleClose = () => {
     reset();
+    createActivity.reset();
     onClose();
   };
 

@@ -42,6 +42,7 @@ export default function CreateTripModal({ groupId, open, onClose }: CreateTripMo
 
   const handleClose = () => {
     reset();
+    createTrip.reset();
     onClose();
   };
 

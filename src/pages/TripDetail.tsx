@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -53,6 +53,20 @@ export default function TripDetail() {
 
   const [addOpen, setAddOpen] = useState(false);
   const [editingStatus, setEditingStatus] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close status dropdown when clicking outside of it.
+  useEffect(() => {
+    if (!editingStatus) return;
+    const handler = (e: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target as Node)) {
+        setEditingStatus(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [editingStatus]);
 
   const { data: trip, isLoading: tripLoading } = useTrip(tripId!);
   const { data: activities, isLoading: activitiesLoading } = useActivities(tripId!);
@@ -71,17 +85,32 @@ export default function TripDetail() {
   const confirmed = activities?.filter((a) => a.status === 'confirmed') ?? [];
   const done = activities?.filter((a) => a.status === 'done') ?? [];
 
-  const handleAdvance = (activityId: string, status: ActivityStatus) => {
-    updateActivity.mutate({ activityId, data: { status } });
+  const handleAdvance = async (activityId: string, status: ActivityStatus) => {
+    try {
+      setActivityError(null);
+      await updateActivity.mutateAsync({ activityId, data: { status } });
+    } catch {
+      setActivityError('Could not update activity. Please try again.');
+    }
   };
 
-  const handleRevert = (activityId: string, status: ActivityStatus) => {
-    updateActivity.mutate({ activityId, data: { status } });
+  const handleRevert = async (activityId: string, status: ActivityStatus) => {
+    try {
+      setActivityError(null);
+      await updateActivity.mutateAsync({ activityId, data: { status } });
+    } catch {
+      setActivityError('Could not update activity. Please try again.');
+    }
   };
 
   const handleDelete = async (activityId: string) => {
     if (!confirm('Remove this activity?')) return;
-    deleteActivity.mutate(activityId);
+    try {
+      setActivityError(null);
+      await deleteActivity.mutateAsync(activityId);
+    } catch {
+      setActivityError('Could not remove activity. Please try again.');
+    }
   };
 
   const handleDeleteTrip = async () => {
@@ -148,7 +177,7 @@ export default function TripDetail() {
             <ThemeToggle />
             {/* Status badge / editor */}
             {canManageTrip ? (
-              <div className="relative">
+              <div className="relative" ref={statusDropdownRef}>
                 <button
                   onClick={() => setEditingStatus((p) => !p)}
                   className={cn(
@@ -196,6 +225,14 @@ export default function TripDetail() {
         {/* Description */}
         {trip.description && (
           <p className="mb-6 text-gray-600 dark:text-gray-400">{trip.description}</p>
+        )}
+
+        {/* Activity error banner */}
+        {activityError && (
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+            <span>{activityError}</span>
+            <button onClick={() => setActivityError(null)} className="ml-3 text-red-400 hover:text-red-600">✕</button>
+          </div>
         )}
 
         {/* Add activity button */}
