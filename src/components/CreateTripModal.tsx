@@ -1,10 +1,12 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Modal } from './ui/Modal';
 import { Input } from './ui/Input';
 import { Button } from './ui/Button';
-import { useCreateTrip } from '../hooks/useTrips';
+import { useCreateTrip, useUpdateTrip } from '../hooks/useTrips';
+import { Trip } from '../api/trips';
 
 const schema = z
   .object({
@@ -26,39 +28,69 @@ type FormValues = z.infer<typeof schema>;
 
 interface CreateTripModalProps {
   groupId: string;
+  /** Pass an existing trip to switch to edit mode. */
+  trip?: Trip;
   open: boolean;
   onClose: () => void;
 }
 
-export default function CreateTripModal({ groupId, open, onClose }: CreateTripModalProps) {
+export default function CreateTripModal({ groupId, trip, open, onClose }: CreateTripModalProps) {
+  const isEditing = !!trip;
+
   const createTrip = useCreateTrip(groupId);
+  const updateTrip = useUpdateTrip(trip?.id ?? '');
+
+  const mutation = isEditing ? updateTrip : createTrip;
 
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+  });
+
+  // Pre-fill when editing; reset when creating or modal closes.
+  useEffect(() => {
+    if (open && isEditing && trip) {
+      reset({
+        name: trip.name,
+        destination: trip.destination,
+        description: trip.description ?? '',
+        start_date: trip.start_date ?? '',
+        end_date: trip.end_date ?? '',
+      });
+    } else if (!open) {
+      reset({});
+    }
+  }, [open, isEditing, trip, reset]);
 
   const handleClose = () => {
-    reset();
-    createTrip.reset();
+    reset({});
+    mutation.reset();
     onClose();
   };
 
   const onSubmit = async (values: FormValues) => {
-    await createTrip.mutateAsync({
+    const payload = {
       name: values.name,
       destination: values.destination,
       description: values.description || undefined,
       start_date: values.start_date || undefined,
       end_date: values.end_date || undefined,
-    });
+    };
+
+    if (isEditing) {
+      await (updateTrip.mutateAsync as (data: typeof payload) => Promise<unknown>)(payload);
+    } else {
+      await createTrip.mutateAsync(payload);
+    }
     handleClose();
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="New Trip">
+    <Modal open={open} onClose={handleClose} title={isEditing ? 'Edit Trip' : 'New Trip'}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
           label="Trip name *"
@@ -97,7 +129,7 @@ export default function CreateTripModal({ groupId, open, onClose }: CreateTripMo
           <textarea
             rows={3}
             placeholder="What's the vibe?"
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm resize-none
+            className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm
                        placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500
                        dark:border-navy-600 dark:bg-navy-800 dark:text-gray-100 dark:placeholder:text-gray-500
                        dark:focus:border-brand-400 dark:focus:ring-brand-400"
@@ -108,9 +140,9 @@ export default function CreateTripModal({ groupId, open, onClose }: CreateTripMo
           )}
         </div>
 
-        {createTrip.error && (
+        {mutation.error && (
           <p className="text-sm text-red-600 dark:text-red-400">
-            Failed to create trip. Please try again.
+            {isEditing ? 'Failed to save changes.' : 'Failed to create trip.'} Please try again.
           </p>
         )}
 
@@ -118,8 +150,8 @@ export default function CreateTripModal({ groupId, open, onClose }: CreateTripMo
           <Button type="button" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
-          <Button type="submit" loading={createTrip.isPending}>
-            Create Trip
+          <Button type="submit" loading={mutation.isPending}>
+            {isEditing ? 'Save Changes' : 'Create Trip'}
           </Button>
         </div>
       </form>

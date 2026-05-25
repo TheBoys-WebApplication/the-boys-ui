@@ -17,9 +17,10 @@ import { Card } from '../components/ui/Card';
 import ThemeToggle from '../components/ThemeToggle';
 import ActivityCard from '../components/ActivityCard';
 import AddActivityModal from '../components/AddActivityModal';
+import CreateTripModal from '../components/CreateTripModal';
 import { useTrip, useActivities, useUpdateActivity, useDeleteActivity, useDeleteTrip, useUpdateTrip } from '../hooks/useTrips';
 import { useGroup } from '../hooks/useGroups';
-import { ActivityStatus, TripStatus } from '../api/trips';
+import { Activity, ActivityStatus, TripStatus } from '../api/trips';
 import { cn } from '../lib/utils';
 
 const STATUS_STYLES: Record<TripStatus, string> = {
@@ -52,6 +53,8 @@ export default function TripDetail() {
   const { user } = useAuthContext();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [editTripOpen, setEditTripOpen] = useState(false);
+  const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [editingStatus, setEditingStatus] = useState(false);
   const [activityError, setActivityError] = useState<string | null>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
@@ -84,6 +87,10 @@ export default function TripDetail() {
   const ideas = activities?.filter((a) => a.status === 'idea') ?? [];
   const confirmed = activities?.filter((a) => a.status === 'confirmed') ?? [];
   const done = activities?.filter((a) => a.status === 'done') ?? [];
+
+  const handleEditActivity = (activity: Activity) => {
+    setEditingActivity(activity);
+  };
 
   const handleAdvance = async (activityId: string, status: ActivityStatus) => {
     try {
@@ -175,6 +182,13 @@ export default function TripDetail() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            {/* Edit trip details */}
+            {canManageTrip && (
+              <Button variant="secondary" size="sm" onClick={() => setEditTripOpen(true)}>
+                <Pencil className="h-4 w-4" />
+                <span className="hidden sm:inline">Edit</span>
+              </Button>
+            )}
             {/* Status badge / editor */}
             {canManageTrip ? (
               <div className="relative" ref={statusDropdownRef}>
@@ -269,6 +283,7 @@ export default function TripDetail() {
                     isLeader={isLeader}
                     onAdvance={handleAdvance}
                     onRevert={handleRevert}
+                    onEdit={handleEditActivity}
                     onDelete={handleDelete}
                     isUpdating={updateActivity.isPending || deleteActivity.isPending}
                   />
@@ -304,6 +319,7 @@ export default function TripDetail() {
                     isLeader={isLeader}
                     onAdvance={handleAdvance}
                     onRevert={handleRevert}
+                    onEdit={handleEditActivity}
                     onDelete={handleDelete}
                     isUpdating={updateActivity.isPending || deleteActivity.isPending}
                   />
@@ -333,6 +349,7 @@ export default function TripDetail() {
                     isLeader={isLeader}
                     onAdvance={handleAdvance}
                     onRevert={handleRevert}
+                    onEdit={handleEditActivity}
                     onDelete={handleDelete}
                     isUpdating={updateActivity.isPending || deleteActivity.isPending}
                   />
@@ -348,7 +365,28 @@ export default function TripDetail() {
         )}
       </main>
 
-      <AddActivityModal tripId={tripId!} open={addOpen} onClose={() => setAddOpen(false)} />
+      {/* Add activity */}
+      <AddActivityModal
+        tripId={tripId!}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+      />
+
+      {/* Edit activity */}
+      <AddActivityModal
+        tripId={tripId!}
+        activity={editingActivity ?? undefined}
+        open={editingActivity !== null}
+        onClose={() => setEditingActivity(null)}
+      />
+
+      {/* Edit trip */}
+      <CreateTripModal
+        groupId={trip.group_id}
+        trip={trip}
+        open={editTripOpen}
+        onClose={() => setEditTripOpen(false)}
+      />
     </div>
   );
 }

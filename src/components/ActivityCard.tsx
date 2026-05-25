@@ -1,4 +1,4 @@
-import { MapPin, Calendar, DollarSign, User, Trash2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { MapPin, Calendar, DollarSign, User, Trash2, ChevronRight, ChevronLeft, Pencil } from 'lucide-react';
 import { Activity, ActivityStatus } from '../api/trips';
 import { Button } from './ui/Button';
 import { cn } from '../lib/utils';
@@ -43,6 +43,7 @@ interface ActivityCardProps {
   isLeader: boolean;
   onAdvance: (id: string, status: ActivityStatus) => void;
   onRevert: (id: string, status: ActivityStatus) => void;
+  onEdit: (activity: Activity) => void;
   onDelete: (id: string) => void;
   isUpdating: boolean;
 }
@@ -53,12 +54,13 @@ export default function ActivityCard({
   isLeader,
   onAdvance,
   onRevert,
+  onEdit,
   onDelete,
   isUpdating,
 }: ActivityCardProps) {
   const next = NEXT_STATUS[activity.status];
   const prev = PREV_STATUS[activity.status];
-  const canDelete = activity.suggested_by === currentUserId || isLeader;
+  const canEditOrDelete = activity.suggested_by === currentUserId || isLeader;
 
   return (
     <div
@@ -141,13 +143,25 @@ export default function ActivityCard({
           </Button>
         )}
         <span className="flex-1" />
-        {canDelete && (
+        {canEditOrDelete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onEdit(activity)}
+            disabled={isUpdating}
+            className="px-2 py-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            title="Edit activity"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        )}
+        {canEditOrDelete && (
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onDelete(activity.id)}
             disabled={isUpdating}
-            className="text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 px-2 py-1"
+            className="px-2 py-1 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
             title="Remove activity"
           >
             <Trash2 className="h-3.5 w-3.5" />
