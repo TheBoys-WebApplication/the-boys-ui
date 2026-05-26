@@ -12,6 +12,7 @@ import {
   Pencil,
   DollarSign,
   LayoutGrid,
+  Compass,
 } from 'lucide-react';
 import { useAuthContext } from '../store/auth';
 import { Button } from '../components/ui/Button';
@@ -24,6 +25,7 @@ import AddExpenseModal from '../components/AddExpenseModal';
 import ExpenseCard from '../components/ExpenseCard';
 import BalanceSummary, { SuggestedSettlement } from '../components/BalanceSummary';
 import SettleUpModal from '../components/SettleUpModal';
+import DiscoverModal from '../components/DiscoverModal';
 import { useTrip, useActivities, useUpdateActivity, useDeleteActivity, useDeleteTrip, useUpdateTrip } from '../hooks/useTrips';
 import { useGroup } from '../hooks/useGroups';
 import { useExpenses, useDeleteExpense, useBalances, useSettlements, useDeleteSettlement } from '../hooks/useExpenses';
@@ -67,6 +69,7 @@ export default function TripDetail() {
 
   // ── Activity state ────────────────────────────────────────────────────────
   const [addOpen, setAddOpen] = useState(false);
+  const [discoverOpen, setDiscoverOpen] = useState(false);
   const [editTripOpen, setEditTripOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [editingStatus, setEditingStatus] = useState(false);
@@ -352,10 +355,16 @@ export default function TripDetail() {
 
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Activities</h2>
-              <Button onClick={() => setAddOpen(true)} size="sm">
-                <Plus className="h-4 w-4" />
-                Add Activity
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setDiscoverOpen(true)}>
+                  <Compass className="h-4 w-4" />
+                  Discover
+                </Button>
+                <Button onClick={() => setAddOpen(true)} size="sm">
+                  <Plus className="h-4 w-4" />
+                  Add
+                </Button>
+              </div>
             </div>
 
             {activitiesLoading ? (
@@ -584,6 +593,14 @@ export default function TripDetail() {
         suggestion={settleUpSuggestion}
         open={settleUpOpen}
         onClose={handleSettleUpClose}
+      />
+
+      {/* Discover */}
+      <DiscoverModal
+        tripId={tripId!}
+        defaultLocation={trip.destination}
+        open={discoverOpen}
+        onClose={() => setDiscoverOpen(false)}
       />
     </div>
   );
