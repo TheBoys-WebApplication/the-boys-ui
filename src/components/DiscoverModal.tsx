@@ -134,7 +134,7 @@ export default function DiscoverModal({
   const [queryInput, setQueryInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Track which results have been added (fsq_id) and which are mid-request.
+  // Track which results have been added (place_id) and which are mid-request.
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
@@ -174,21 +174,21 @@ export default function DiscoverModal({
   };
 
   const handleAdd = async (result: DiscoverResult) => {
-    if (addedIds.has(result.fsq_id) || pendingIds.has(result.fsq_id)) return;
+    if (addedIds.has(result.place_id) || pendingIds.has(result.place_id)) return;
 
-    setPendingIds((prev) => new Set(prev).add(result.fsq_id));
+    setPendingIds((prev) => new Set(prev).add(result.place_id));
     try {
       await createActivity.mutateAsync({
         name: result.name,
         location: result.address,
       });
-      setAddedIds((prev) => new Set(prev).add(result.fsq_id));
+      setAddedIds((prev) => new Set(prev).add(result.place_id));
     } catch {
       // Leave the button in its normal state so the user can retry.
     } finally {
       setPendingIds((prev) => {
         const next = new Set(prev);
-        next.delete(result.fsq_id);
+        next.delete(result.place_id);
         return next;
       });
     }
@@ -292,10 +292,10 @@ export default function DiscoverModal({
         {!isLoading &&
           results?.map((r) => (
             <ResultCard
-              key={r.fsq_id}
+              key={r.place_id}
               result={r}
-              added={addedIds.has(r.fsq_id)}
-              pending={pendingIds.has(r.fsq_id)}
+              added={addedIds.has(r.place_id)}
+              pending={pendingIds.has(r.place_id)}
               onAdd={handleAdd}
             />
           ))}

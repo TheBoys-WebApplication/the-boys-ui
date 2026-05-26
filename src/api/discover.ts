@@ -1,7 +1,7 @@
 import { api } from '../lib/axios';
 
 export interface DiscoverResult {
-  fsq_id: string;
+  place_id: string;
   name: string;
   category: string;
   address: string;
