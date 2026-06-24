@@ -42,7 +42,7 @@ export default function Signup() {
       last_name: data.last_name,
       display_name: data.display_name,
     });
-    navigate('/');
+    navigate('/dashboard');
   };
 
   const serverError =

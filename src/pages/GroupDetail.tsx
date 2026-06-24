@@ -48,7 +48,7 @@ export default function GroupDetail() {
   const handleDeleteGroup = async () => {
     if (!confirm(`Delete "${group?.name}"? This cannot be undone.`)) return;
     await deleteGroup.mutateAsync(id!);
-    navigate('/');
+    navigate('/dashboard');
   };
 
   const handleRemoveMember = async (userId: string, name: string) => {
