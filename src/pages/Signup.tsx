@@ -10,6 +10,7 @@ import { useSignup } from '../hooks/useAuth';
 
 const schema = z
   .object({
+    invite_code: z.string().min(1, 'Invite code is required'),
     first_name: z.string().min(1, 'Required').max(60),
     last_name: z.string().min(1, 'Required').max(60),
     display_name: z.string().min(2, 'At least 2 characters').max(60),
@@ -41,6 +42,7 @@ export default function Signup() {
       first_name: data.first_name,
       last_name: data.last_name,
       display_name: data.display_name,
+      invite_code: data.invite_code,
     });
     navigate('/dashboard');
   };
@@ -66,6 +68,14 @@ export default function Signup() {
           </h1>
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <Input
+              label="Invite code"
+              placeholder="Enter your invite code"
+              autoComplete="off"
+              error={errors.invite_code?.message}
+              {...register('invite_code')}
+            />
+
             {/* First / Last name side by side */}
             <div className="grid grid-cols-2 gap-3">
               <Input

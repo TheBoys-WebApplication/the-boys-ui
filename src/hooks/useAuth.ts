@@ -37,12 +37,14 @@ export function useSignup() {
       first_name,
       last_name,
       display_name,
+      invite_code,
     }: {
       email: string;
       password: string;
       first_name: string;
       last_name: string;
       display_name: string;
+      invite_code: string;
     }) => {
       const { data: authData } = await authApi.register(
         email,
@@ -50,6 +52,7 @@ export function useSignup() {
         first_name,
         last_name,
         display_name,
+        invite_code,
       );
       setAuthToken(authData.token);
       const { data: userData } = await authApi.me();

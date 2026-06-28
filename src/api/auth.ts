@@ -17,6 +17,7 @@ export const authApi = {
     first_name: string,
     last_name: string,
     display_name: string,
+    invite_code: string,
   ) =>
     api.post<AuthResponse>('/auth/register', {
       email,
@@ -24,6 +25,7 @@ export const authApi = {
       first_name,
       last_name,
       display_name,
+      invite_code,
     }),
 
   login: (email: string, password: string) =>
