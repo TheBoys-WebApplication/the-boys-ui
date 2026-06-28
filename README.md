@@ -2,6 +2,16 @@
 
 React 18 + TypeScript frontend for TheBoys — a trip planning and expense splitting app for friend groups.
 
+## Deployment
+
+| | |
+|---|---|
+| **Live URL** | `https://the-boys-ui.pages.dev` |
+| **Host** | Cloudflare Pages (auto-deploys from `main` on push) |
+| **API** | `https://the-boys-api.fly.dev` (set via `VITE_API_URL` in Cloudflare Pages env vars) |
+
+Deploy: `git push` to main — Cloudflare Pages handles the rest.
+
 ## Stack
 
 - **React 18** + **TypeScript** via **Vite**
