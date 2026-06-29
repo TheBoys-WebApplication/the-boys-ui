@@ -41,7 +41,7 @@ export default function Dashboard() {
       // ignore — always clear client state
     }
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   const onJoin = async (data: JoinForm) => {
