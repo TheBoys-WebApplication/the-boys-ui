@@ -142,7 +142,7 @@ export default function Landing() {
 
             <h1 className="max-w-3xl text-5xl font-black leading-none tracking-tight sm:text-7xl">
               <span className="bg-gradient-to-b from-white to-gray-200 bg-clip-text text-transparent">
-                Epic Trips.
+                Trips With The Boys
               </span>
               <br />
               <span className="bg-gradient-to-r from-brand-300 via-brand-400 to-brand-500 bg-clip-text text-transparent">
